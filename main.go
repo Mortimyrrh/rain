@@ -23,6 +23,7 @@ func tick() tea.Cmd {
 
 type model struct {
 	width, height int
+	rain          [][]rune //yx faster to draw I hope
 	hello         string
 	line          string
 }
@@ -32,7 +33,7 @@ func (m model) Init() tea.Cmd {
 }
 
 var katakana = []rune{
-	'0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+	'１', '２', '３', '４', '５', '６', '７', '８', '９', '０',
 	'゠', 'ァ', 'ア', 'ィ', 'イ', 'ゥ', 'ウ', 'ェ', 'エ', 'ォ', 'オ', 'カ', 'ガ', 'キ', 'ギ', 'ク',
 	'グ', 'ケ', 'ゲ', 'コ', 'ゴ', 'サ', 'ザ', 'シ', 'ジ', 'ス', 'ズ', 'セ', 'ゼ', 'ソ', 'ゾ', 'タ',
 	'ダ', 'チ', 'ヂ', 'ッ', 'ツ', 'ヅ', 'テ', 'デ', 'ト', 'ド', 'ナ', 'ニ', 'ヌ', 'ネ', 'ノ', 'ハ',
@@ -49,31 +50,34 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height
+		m.height = msg.Height + 1
+		m.rain = make([][]rune, m.height)
+		for row := range m.rain {
+			m.rain[row] = make([]rune, m.width)
+		}
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
 	case tickMsg:
-		var sb strings.Builder
-		for y := range m.height {
-			for range m.width {
-				sb.WriteRune(randKat())
-			}
-			if y != m.height-1 {
-				sb.WriteString("\n")
+		for row := range m.rain {
+			for column := range m.rain[row] {
+				m.rain[row][column] = randKat()
 			}
 		}
-		m.hello = sb.String()
 		return m, tick()
 	}
 	return m, nil
 }
 
 func (m model) View() tea.View {
-	s := m.hello
-	return tea.NewView(s)
+	var sb strings.Builder
+	for row := range m.rain {
+		sb.WriteString(string(m.rain[row]))
+		sb.WriteRune('\n')
+	}
+	return tea.NewView(sb.String())
 }
 
 func main() {
