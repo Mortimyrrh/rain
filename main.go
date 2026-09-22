@@ -57,10 +57,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width / 2 // using double width unicode characters
 		m.height = msg.Height
+		// recreate rain
 		m.rain = make([][]rune, m.height)
 		for row := range m.rain {
 			m.rain[row] = make([]rune, m.width)
 		}
+
 	case tea.KeyPressMsg:
 		// "press 'any' key to continue" or quit in this case...
 		return m, tea.Quit
@@ -71,13 +73,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.rain[row][column] = ideographicSpace
 			}
 		}
-		// update lines
-		m.line.y++
-		if m.line.y >= len(m.rain) {
-			// die or just reset?
+		// delete lines off screen
+		if m.line.y > len(m.rain) || m.line.x >= m.width {
+			// reset line
 			m.line.y = 0 - m.line.len
 			m.line.x = rand.Intn(m.width)
 		}
+		// update lines
+		m.line.y++
 		// draw lines
 		for yOffset := range m.line.len {
 			y := m.line.y + yOffset
@@ -97,6 +100,7 @@ func (m model) View() tea.View {
 	var sb strings.Builder
 	for row := range m.rain {
 		sb.WriteString(string(m.rain[row]))
+		// no blank line at the bottom
 		if row != len(m.rain)-1 {
 			sb.WriteRune('\n')
 		}
