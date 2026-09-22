@@ -11,7 +11,7 @@ import (
 	"github.com/NimbleMarkets/go-booba"
 )
 
-const fps = 120
+const fps = 24
 
 type tickMsg time.Time
 
@@ -21,11 +21,15 @@ func tick() tea.Cmd {
 	})
 }
 
+type line struct {
+	x, y, len int
+}
+
 type model struct {
 	width, height int
 	rain          [][]rune //yx faster to draw I hope
 	hello         string
-	line          string
+	line          line
 }
 
 func (m model) Init() tea.Cmd {
@@ -42,6 +46,8 @@ var katakana = []rune{
 	'ヰ', 'ヱ', 'ヲ', 'ン', 'ヴ', 'ヵ', 'ヶ', 'ヷ', 'ヸ', 'ヹ', 'ヺ', '・', 'ー', 'ヽ', 'ヾ', 'ヿ',
 }
 
+var ideographicSpace = '　'
+
 func randKat() rune {
 	return katakana[rand.Intn(len(katakana))]
 }
@@ -49,21 +55,37 @@ func randKat() rune {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height + 1
+		m.width = msg.Width / 2 // using double width unicode characters
+		m.height = msg.Height
 		m.rain = make([][]rune, m.height)
 		for row := range m.rain {
 			m.rain[row] = make([]rune, m.width)
 		}
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
-			return m, tea.Quit
-		}
+		// "press 'any' key to continue" or quit in this case...
+		return m, tea.Quit
 	case tickMsg:
+		// clear rain
 		for row := range m.rain {
 			for column := range m.rain[row] {
-				m.rain[row][column] = randKat()
+				m.rain[row][column] = ideographicSpace
+			}
+		}
+		// update lines
+		m.line.y++
+		if m.line.y >= len(m.rain) {
+			// die or just reset?
+			m.line.y = 0 - m.line.len
+			m.line.x = rand.Intn(m.width)
+		}
+		// draw lines
+		for yOffset := range m.line.len {
+			y := m.line.y + yOffset
+			if y >= len(m.rain) {
+				break
+			}
+			if y >= 0 {
+				m.rain[y][m.line.x] = randKat()
 			}
 		}
 		return m, tick()
@@ -75,13 +97,15 @@ func (m model) View() tea.View {
 	var sb strings.Builder
 	for row := range m.rain {
 		sb.WriteString(string(m.rain[row]))
-		sb.WriteRune('\n')
+		if row != len(m.rain)-1 {
+			sb.WriteRune('\n')
+		}
 	}
 	return tea.NewView(sb.String())
 }
 
 func main() {
-	m := model{}
+	m := model{line: line{x: 10, y: 0, len: 10}}
 	if err := booba.Run(m); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
