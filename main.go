@@ -16,6 +16,7 @@ const lineLenMin = 3
 const lineLenVariance = 10 // this is added to te line length
 const lineSpeedMin = 0.25
 const lineSpeedVariance = 2
+const maxLines = 100
 
 func tick() tea.Cmd {
 	return tea.Tick(time.Second/fps, func(t time.Time) tea.Msg {
@@ -29,11 +30,15 @@ type line struct {
 	yF        float64
 }
 
+func NewLine() line {
+	return line{y: 999999}
+}
+
 type model struct {
 	width, height int
 	rain          [][]rune //yx faster to draw I hope
 	hello         string
-	line          line
+	lines         []line
 	lastTick      time.Time
 	speed         float64
 }
@@ -82,27 +87,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.rain[row][column] = ideographicSpace
 			}
 		}
-		// delete lines off screen
-		if m.line.y > len(m.rain) || m.line.x >= m.width {
-			// reset line
-			m.line.speed = float64(float64(lineSpeedMin+(rand.Float64()*lineSpeedVariance)) / float64(40.)) ///40 is a nicer range to work around
-			m.line.len = lineLenMin + rand.Intn(lineLenVariance)
-			m.line.y = 0 - m.line.len
-			m.line.yF = float64(0 - m.line.len)
-			m.line.x = rand.Intn(m.width)
-		}
-		// update lines
-		m.line.yF = m.line.yF + (float64(elapsedTime.Milliseconds()) * m.line.speed)
-		m.line.y = int(m.line.yF)
-
-		// draw lines
-		for yOffset := range m.line.len {
-			y := m.line.y + yOffset
-			if y >= len(m.rain) {
-				break
+		// lines
+		for line, _ := range m.lines {
+			line := &m.lines[line]
+			// reset line off screen
+			if line.y > len(m.rain) || line.x >= m.width {
+				line.speed = float64(float64(lineSpeedMin+(rand.Float64()*lineSpeedVariance)) / float64(m.height)) ///40 is a nicer range to work around
+				line.len = lineLenMin + rand.Intn(lineLenVariance)
+				line.y = 0 - line.len
+				line.yF = float64(0 - line.len)
+				line.x = rand.Intn(m.width)
 			}
-			if y >= 0 {
-				m.rain[y][m.line.x] = randKat()
+			// update line
+			line.yF = line.yF + (float64(elapsedTime.Milliseconds()) * line.speed)
+			line.y = int(line.yF)
+
+			// draw line
+			for yOffset := range line.len {
+				y := line.y + yOffset
+				if y >= len(m.rain) {
+					break
+				}
+				if y >= 0 {
+					m.rain[y][line.x] = randKat()
+				}
 			}
 		}
 		m.lastTick = currentTime
@@ -124,7 +132,12 @@ func (m model) View() tea.View {
 }
 
 func main() {
-	m := model{speed: 1, line: line{x: 10, y: 0, len: 10, speed: 0.025}}
+	m := model{speed: 1}
+	m.lines = make([]line, maxLines)
+	for range maxLines {
+		m.lines = append(m.lines, NewLine())
+	}
+
 	if err := booba.Run(m); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
