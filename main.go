@@ -11,18 +11,22 @@ import (
 	"github.com/NimbleMarkets/go-booba"
 )
 
-const fps = 24
-
-type tickMsg time.Time
+const fps = 120
+const lineLenMin = 3
+const lineLenVariance = 10 // this is added to te line length
+const lineSpeedMin = 0.25
+const lineSpeedVariance = 2
 
 func tick() tea.Cmd {
 	return tea.Tick(time.Second/fps, func(t time.Time) tea.Msg {
-		return tickMsg(t)
+		return time.Time(t)
 	})
 }
 
 type line struct {
 	x, y, len int
+	speed     float64
+	yF        float64
 }
 
 type model struct {
@@ -30,6 +34,8 @@ type model struct {
 	rain          [][]rune //yx faster to draw I hope
 	hello         string
 	line          line
+	lastTick      time.Time
+	speed         float64
 }
 
 func (m model) Init() tea.Cmd {
@@ -66,7 +72,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		// "press 'any' key to continue" or quit in this case...
 		return m, tea.Quit
-	case tickMsg:
+	case time.Time:
+		currentTime := msg
+		elapsedTime := currentTime.Sub(m.lastTick)
+
 		// clear rain
 		for row := range m.rain {
 			for column := range m.rain[row] {
@@ -76,11 +85,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// delete lines off screen
 		if m.line.y > len(m.rain) || m.line.x >= m.width {
 			// reset line
+			m.line.speed = float64(float64(lineSpeedMin+(rand.Float64()*lineSpeedVariance)) / float64(40.)) ///40 is a nicer range to work around
+			m.line.len = lineLenMin + rand.Intn(lineLenVariance)
 			m.line.y = 0 - m.line.len
+			m.line.yF = float64(0 - m.line.len)
 			m.line.x = rand.Intn(m.width)
 		}
 		// update lines
-		m.line.y++
+		m.line.yF = m.line.yF + (float64(elapsedTime.Milliseconds()) * m.line.speed)
+		m.line.y = int(m.line.yF)
+
 		// draw lines
 		for yOffset := range m.line.len {
 			y := m.line.y + yOffset
@@ -91,6 +105,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.rain[y][m.line.x] = randKat()
 			}
 		}
+		m.lastTick = currentTime
 		return m, tick()
 	}
 	return m, nil
@@ -109,7 +124,7 @@ func (m model) View() tea.View {
 }
 
 func main() {
-	m := model{line: line{x: 10, y: 0, len: 10}}
+	m := model{speed: 1, line: line{x: 10, y: 0, len: 10, speed: 0.025}}
 	if err := booba.Run(m); err != nil {
 		fmt.Println("Error:", err)
 		os.Exit(1)
