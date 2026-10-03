@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math/rand"
 	"os"
@@ -28,6 +29,7 @@ type line struct {
 	x, y, len int
 	speed     float64
 	yF        float64
+	colour    string
 }
 
 func NewLine() line {
@@ -36,11 +38,12 @@ func NewLine() line {
 
 type model struct {
 	width, height int
-	rain          [][]rune //yx faster to draw I hope
+	rain          [][]string //yx
 	hello         string
 	lines         []line
 	lastTick      time.Time
 	speed         float64
+	multi         bool // multicolour mode
 }
 
 func (m model) Init() tea.Cmd {
@@ -69,9 +72,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width / 2 // using double width unicode characters
 		m.height = msg.Height
 		// recreate rain
-		m.rain = make([][]rune, m.height)
+		m.rain = make([][]string, m.height)
 		for row := range m.rain {
-			m.rain[row] = make([]rune, m.width)
+			m.rain[row] = make([]string, m.width)
 		}
 
 	case tea.KeyPressMsg:
@@ -84,7 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear rain
 		for row := range m.rain {
 			for column := range m.rain[row] {
-				m.rain[row][column] = ideographicSpace
+				m.rain[row][column] = string(ideographicSpace)
 			}
 		}
 		// lines
@@ -97,6 +100,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				line.y = 0 - line.len
 				line.yF = float64(0 - line.len)
 				line.x = rand.Intn(m.width)
+				if m.multi {
+					line.colour = colours[rand.Int31n(int32(len(colours)))]
+				} else {
+					line.colour = white
+				}
 			}
 			// update line
 			line.yF = line.yF + (float64(elapsedTime.Milliseconds()) * line.speed)
@@ -109,7 +117,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				if y >= 0 {
-					m.rain[y][line.x] = randKat()
+					m.rain[y][line.x] = line.colour + string(randKat()) + reset
 				}
 			}
 		}
@@ -119,10 +127,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+// https://en.wikipedia.org/wiki/ANSI_escape_code#/media/File:ANSI_sample_program_output.png
+// const ESC = "\033"
+const reset = "\033[0m"
+const black = "\033[30;1m"
+const red = "\033[31;1m"
+const green = "\033[32;1m"
+const yellow = "\033[33;1m"
+const blue = "\033[34;1m"
+const violet = "\033[35;1m"
+const lightblue = "\033[36;1m"
+const white = "\033[36;1m"
+
+var colours = []string{red, green, yellow, blue, violet, lightblue}
+
 func (m model) View() tea.View {
 	var sb strings.Builder
+
 	for row := range m.rain {
-		sb.WriteString(string(m.rain[row]))
+		sb.WriteString(strings.Join(m.rain[row], ""))
 		// no blank line at the bottom
 		if row != len(m.rain)-1 {
 			sb.WriteRune('\n')
@@ -131,8 +154,16 @@ func (m model) View() tea.View {
 	return tea.NewView(sb.String())
 }
 
+type args struct {
+	multi bool
+}
+
 func main() {
-	m := model{speed: 1}
+	args := args{}
+	flag.BoolVar(&args.multi, "multi", false, "adds colour")
+	flag.Parse()
+
+	m := model{speed: 1, multi: args.multi}
 	m.lines = make([]line, maxLines)
 	for range maxLines {
 		m.lines = append(m.lines, NewLine())

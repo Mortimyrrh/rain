@@ -3,3 +3,5 @@
 Run locally with `go run github.com/Mortimyrrh/rain`
 
 Live webpage https://mortimyrrh.github.io/rain/ (sometimes it needs a refresh)
+
+use --multi for multicolour mode
