@@ -14,10 +14,9 @@ import (
 
 const fps = 120
 const lineLenMin = 3
-const lineLenVariance = 10 // this is added to te line length
+const lineLenVariance = 10 // this is added to the line length
 const lineSpeedMin = 0.25
-const lineSpeedVariance = 2
-const maxLines = 100
+const lineSpeedVariance = .01
 
 func tick() tea.Cmd {
 	return tea.Tick(time.Second/fps, func(t time.Time) tea.Msg {
@@ -33,7 +32,7 @@ type line struct {
 }
 
 func NewLine() line {
-	return line{y: 999999}
+	return line{y: 999999} // will get reset immediately
 }
 
 type model struct {
@@ -44,6 +43,8 @@ type model struct {
 	lastTick      time.Time
 	speed         float64
 	multi         bool // multicolour mode
+	maxLines      int
+	density       float64 // does update dynamically
 }
 
 func (m model) Init() tea.Cmd {
@@ -77,6 +78,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rain[row] = make([]string, m.width)
 		}
 
+		m.maxLines = int(float64(m.width*m.height) * m.density)
+		m.lines = make([]line, m.maxLines)
+		for range m.maxLines {
+			m.lines = append(m.lines, NewLine())
+		}
+
 	case tea.KeyPressMsg:
 		// "press 'any' key to continue" or quit in this case...
 		return m, tea.Quit
@@ -95,10 +102,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			line := &m.lines[line]
 			// reset line off screen
 			if line.y > len(m.rain) || line.x >= m.width {
-				line.speed = float64(float64(lineSpeedMin+(rand.Float64()*lineSpeedVariance)) / float64(m.height)) ///40 is a nicer range to work around
+				line.speed = float64(float64(lineSpeedMin*float64(m.height)/1000) + (rand.Float64() * lineSpeedVariance)) ///1000 is a nicer range to work around
 				line.len = lineLenMin + rand.Intn(lineLenVariance)
-				line.y = 0 - line.len
-				line.yF = float64(0 - line.len)
+				line.y = 0
+				line.yF = -float64(line.len + rand.Intn(m.height))
 				line.x = rand.Intn(m.width)
 				if m.multi {
 					line.colour = colours[rand.Int31n(int32(len(colours)))]
@@ -117,7 +124,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				if y >= 0 {
-					m.rain[y][line.x] = line.colour + string(randKat()) + reset
+					if m.multi {
+						m.rain[y][line.x] = line.colour + string(randKat()) // + reset (no need to mid way reset do it once last)
+					} else {
+						m.rain[y][line.x] = string(randKat())
+					}
 				}
 			}
 		}
@@ -145,29 +156,23 @@ func (m model) View() tea.View {
 	var sb strings.Builder
 
 	for row := range m.rain {
-		sb.WriteString(strings.Join(m.rain[row], ""))
+		for _, ru := range m.rain[row] {
+			sb.WriteString(ru)
+		}
 		// no blank line at the bottom
 		if row != len(m.rain)-1 {
 			sb.WriteRune('\n')
 		}
 	}
+	sb.WriteString(reset)
 	return tea.NewView(sb.String())
 }
 
-type args struct {
-	multi bool
-}
-
 func main() {
-	args := args{}
-	flag.BoolVar(&args.multi, "multi", false, "adds colour")
+	m := model{speed: 1, maxLines: 1}
+	flag.BoolVar(&m.multi, "multi", false, "adds colour (use a gpu accelerated terminal for less lag)")
+	flag.Float64Var(&m.density, "density", .1, "adds lines")
 	flag.Parse()
-
-	m := model{speed: 1, multi: args.multi}
-	m.lines = make([]line, maxLines)
-	for range maxLines {
-		m.lines = append(m.lines, NewLine())
-	}
 
 	if err := booba.Run(m); err != nil {
 		fmt.Println("Error:", err)
