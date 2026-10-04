@@ -12,11 +12,11 @@ import (
 	"github.com/NimbleMarkets/go-booba"
 )
 
-const fps = 24
+const fps = 120
 const lineLenMin = 3
 const lineLenVariance = 15 // this is added to the line length
-const lineSpeedMin = 0.25
-const lineSpeedVariance = .01
+const lineSpeedMin = 0.01
+const lineSpeedVariance = .03
 
 func tick() tea.Cmd {
 	return tea.Tick(time.Second/fps, func(t time.Time) tea.Msg {
@@ -150,14 +150,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // https://en.wikipedia.org/wiki/ANSI_escape_code#/media/File:ANSI_sample_program_output.png
 // const ESC = "\033"
 const reset = "\033[0m"
-const black = "\033[30;1m"
-const red = "\033[31;1m"
-const green = "\033[32;1m"
-const yellow = "\033[33;1m"
-const blue = "\033[34;1m"
-const violet = "\033[35;1m"
-const lightblue = "\033[36;1m"
-const white = "\033[36;1m"
+const black = "\033[30m"
+const red = "\033[31m"
+const green = "\033[32m"
+const yellow = "\033[33m"
+const blue = "\033[34m"
+const violet = "\033[35m"
+const lightblue = "\033[36m"
+const white = "\033[36m"
 
 var colours = []string{red, green, yellow, blue, violet, lightblue}
 
@@ -181,7 +181,7 @@ func main() {
 	m := model{maxLines: 1}
 	flag.Float64Var(&m.speed, "speed", 1, "adds speed (1 is default)")
 	flag.BoolVar(&m.multi, "multi", false, "adds colour (use a gpu accelerated terminal for less lag)")
-	flag.Float64Var(&m.density, "density", .07, "adds lines (.1 is default)")
+	flag.Float64Var(&m.density, "density", .05, "adds lines (.1 is default)")
 	flag.Parse()
 
 	if err := booba.Run(m); err != nil {
