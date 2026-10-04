@@ -12,9 +12,9 @@ import (
 	"github.com/NimbleMarkets/go-booba"
 )
 
-const fps = 120
+const fps = 24
 const lineLenMin = 3
-const lineLenVariance = 10 // this is added to the line length
+const lineLenVariance = 15 // this is added to the line length
 const lineSpeedMin = 0.25
 const lineSpeedVariance = .01
 
@@ -29,6 +29,7 @@ type line struct {
 	speed     float64
 	yF        float64
 	colour    string
+	history   []string
 }
 
 func NewLine() line {
@@ -61,7 +62,7 @@ var katakana = []rune{
 	'ヰ', 'ヱ', 'ヲ', 'ン', 'ヴ', 'ヵ', 'ヶ', 'ヷ', 'ヸ', 'ヹ', 'ヺ', '・', 'ー', 'ヽ', 'ヾ', 'ヿ',
 }
 
-var ideographicSpace = '　'
+const ideographicSpace = string('　')
 
 func randKat() rune {
 	return katakana[rand.Intn(len(katakana))]
@@ -94,7 +95,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// clear rain
 		for row := range m.rain {
 			for column := range m.rain[row] {
-				m.rain[row][column] = string(ideographicSpace)
+				m.rain[row][column] = ideographicSpace
 			}
 		}
 		// lines
@@ -107,6 +108,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				line.y = 0
 				line.yF = -float64(line.len + rand.Intn(m.height))
 				line.x = rand.Intn(m.width)
+				line.history = make([]string, m.height)
+				for i := range m.height {
+					line.history[i] = string(randKat())
+				}
 				if m.multi {
 					line.colour = colours[rand.Int31n(int32(len(colours)))]
 				} else {
@@ -114,7 +119,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			// update line
-			line.yF = line.yF + (float64(elapsedTime.Milliseconds()) * line.speed)
+			line.yF = line.yF + (float64(elapsedTime.Milliseconds()) * m.speed * line.speed)
 			line.y = int(line.yF)
 
 			// draw line
@@ -124,10 +129,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					break
 				}
 				if y >= 0 {
+					rune_ := line.history[y]
+					if yOffset == line.len-1 {
+						rune_ = string(randKat())
+					}
 					if m.multi {
-						m.rain[y][line.x] = line.colour + string(randKat()) // + reset (no need to mid way reset do it once last)
+						m.rain[y][line.x] = line.colour + rune_ // + reset (no need to mid way reset do it once last)
 					} else {
-						m.rain[y][line.x] = string(randKat())
+						m.rain[y][line.x] = rune_ // skip setting colour
 					}
 				}
 			}
@@ -169,9 +178,10 @@ func (m model) View() tea.View {
 }
 
 func main() {
-	m := model{speed: 1, maxLines: 1}
+	m := model{maxLines: 1}
+	flag.Float64Var(&m.speed, "speed", 1, "adds speed (1 is default)")
 	flag.BoolVar(&m.multi, "multi", false, "adds colour (use a gpu accelerated terminal for less lag)")
-	flag.Float64Var(&m.density, "density", .1, "adds lines")
+	flag.Float64Var(&m.density, "density", .07, "adds lines (.1 is default)")
 	flag.Parse()
 
 	if err := booba.Run(m); err != nil {
