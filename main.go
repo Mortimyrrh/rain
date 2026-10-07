@@ -181,7 +181,7 @@ func main() {
 	m := model{maxLines: 1}
 	flag.Float64Var(&m.speed, "speed", 1, "adds speed (1 is default)")
 	flag.BoolVar(&m.multi, "multi", false, "adds colour (use a gpu accelerated terminal for less lag)")
-	flag.Float64Var(&m.density, "density", .05, "adds lines (.1 is default)")
+	flag.Float64Var(&m.density, "density", .05, "adds lines (.05 is default)")
 	flag.Parse()
 
 	if err := booba.Run(m); err != nil {
