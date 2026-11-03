@@ -29,7 +29,7 @@ As colours are rendered by the terminal, they can be set by changing your termin
 
 From source: Clone the repo and follow [this guide](https://go.dev/doc/tutorial/compile-install).  
 
-Direct install: `go install gitlab.com/mortimyrrh/rain@latest`  
+Direct install: `go install github.com/mortimyrrh/rain@latest`  
 
 Add `rain` to the end of your `~/.bashrc` of choice for a splash screen when opening a new terminal.  
 
