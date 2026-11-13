@@ -22,7 +22,7 @@ As colours are rendered by the terminal, they can be set by changing your termin
 
 ### Dependencies
 
-- Go 1.25 needs to be installed and in your PATH see [Go install](https://go.dev/doc/install) for instructions.  
+- At least Go 1.25 needs to be installed and in your PATH see [Go install](https://go.dev/doc/install) for instructions.  
 
 
 ### Install
